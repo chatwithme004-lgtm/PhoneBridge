@@ -1,0 +1,16 @@
+# build output
+build/
+dist/
+*.dmg
+*.spec
+__pycache__/
+*.pyc
+
+# downloaded helper tools (see scripts/get_tools.sh)
+tools/
+
+# local only
+backup-*/
+design/
+.claude/
+.DS_Store

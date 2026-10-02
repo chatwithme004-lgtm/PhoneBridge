@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>PhoneBridge</title>
+<style>
+  :root {
+    --accent: #007AFF; --green: #34C759; --orange: #FF9500; --red: #FF3B30;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    --win: #ffffff; --side: #f5f5f7; --glass: rgba(246,246,248,.82); --line: rgba(0,0,0,.09);
+    --text: #1d1d1f; --sec: #6e6e73; --ter: #a1a1a6; --fill: rgba(0,0,0,.05); --fill2: rgba(0,0,0,.08);
+    --card: #f5f5f7; --cardline: rgba(0,0,0,.06); --selbg: rgba(0,0,0,.07); --selun: #dcdcde;
+    --menu: rgba(246,246,248,.92); --shadow: 0 12px 40px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.15);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #0A84FF; --green: #30D158; --orange: #FF9F0A; --red: #FF453A;
+      --win: #1e1e20; --side: #252528; --glass: rgba(44,44,47,.82); --line: rgba(255,255,255,.09);
+      --text: #f5f5f7; --sec: #98989d; --ter: #636366; --fill: rgba(255,255,255,.06); --fill2: rgba(255,255,255,.1);
+      --card: #2a2a2d; --cardline: rgba(255,255,255,.06); --selbg: rgba(255,255,255,.1); --selun: #464649;
+      --menu: rgba(40,40,43,.92); --shadow: 0 12px 40px rgba(0,0,0,.55), 0 0 0 .5px rgba(255,255,255,.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: var(--font); background: var(--win); color: var(--text); -webkit-font-smoothing: antialiased;
+         display: flex; flex-direction: column; overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default; font-size: 13px; }
+  input { user-select: text; -webkit-user-select: text; }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  button { font-family: var(--font); }
+
+  /* ---------- toolbar ---------- */
+  .toolbar { height: 52px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 16px; background: var(--glass);
+             backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px); border-bottom: .5px solid var(--line); }
+  body.native .toolbar { padding-left: 84px; }
+  .ttl { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .logo { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(160deg, #5ac8fa, #007AFF); display: flex;
+          align-items: center; justify-content: center; color: #fff; }
+  .logo svg { width: 12px; height: 12px; stroke-width: 2.2; }
+  .sp { flex: 1; align-self: stretch; }
+  .cap { display: inline-flex; align-items: center; gap: 2px; background: var(--fill); border-radius: 999px; padding: 3px; box-shadow: inset 0 0 0 .5px var(--line); }
+  .cap button, .tb { border: 0; background: transparent; color: var(--sec); height: 26px; min-width: 30px; padding: 0 9px; border-radius: 999px;
+                     display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 500; }
+  .cap button.on { background: var(--win); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 0 0 .5px var(--line); }
+  .tb.solo { background: var(--fill); box-shadow: inset 0 0 0 .5px var(--line); height: 30px; padding: 0 12px; color: var(--text); }
+  .tb.solo:active, .cap button:active { filter: brightness(.94); }
+  .tb.live { color: var(--accent); }
+  .search { display: flex; align-items: center; gap: 6px; width: 180px; height: 30px; padding: 0 10px; border-radius: 999px;
+            background: var(--fill); box-shadow: inset 0 0 0 .5px var(--line); color: var(--ter); }
+  .search input { border: 0; outline: 0; background: transparent; color: var(--text); font: 12.5px var(--font); width: 100%; }
+  .ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--fill2) 0);
+          -webkit-mask: radial-gradient(circle 5px, transparent 98%, #000 100%); mask: radial-gradient(circle 5px, transparent 98%, #000 100%); }
+
+  /* ---------- panes ---------- */
+  .main { flex: 1; display: flex; min-height: 0; }
+  .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--win); position: relative; }
+  .pane.drop::after { content: ""; position: absolute; inset: 4px; border: 2px solid var(--accent); border-radius: 10px; pointer-events: none;
+                      background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .phead { padding: 14px 18px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: .5px solid var(--line); }
+  .dev { display: flex; align-items: center; gap: 11px; min-height: 34px; }
+  .di { width: 34px; height: 34px; border-radius: 9px; background: var(--card); display: flex; align-items: center; justify-content: center;
+        color: var(--sec); box-shadow: inset 0 0 0 .5px var(--cardline); flex: none; }
+  .di svg { width: 19px; height: 19px; }
+  .dn { font-size: 15px; font-weight: 600; letter-spacing: -.1px; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .dm { font-size: 11.5px; color: var(--sec); margin-top: 2px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .badge { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+  .badge.o { background: color-mix(in srgb, var(--orange) 16%, transparent); color: var(--orange); }
+  .cbar { width: 90px; height: 5px; border-radius: 3px; background: var(--fill2); overflow: hidden; display: inline-flex; }
+  .cbar b { background: var(--accent); }
+  .crumbs { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--sec); min-height: 22px; overflow: hidden; white-space: nowrap; }
+  .crumbs .nav { display: inline-flex; gap: 0; margin-right: 6px; }
+  .crumbs .nav button { border: 0; background: transparent; color: var(--sec); width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .crumbs .nav button:disabled { color: var(--ter); opacity: .5; }
+  .crumbs .nav button:not(:disabled):hover { background: var(--fill); }
+  .crumbs .nav svg { width: 13px; height: 13px; }
+  .crumb { padding: 2px 6px; border-radius: 5px; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .crumb:hover { background: var(--fill); }
+  .crumb:last-child { color: var(--text); font-weight: 500; }
+  .crumbs .chev { width: 10px; height: 10px; color: var(--ter); stroke-width: 2.2; }
+  .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .list { flex: 1; overflow: auto; outline: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px 4px; padding: 16px 14px; align-content: start; }
+  .it { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px 3px; min-width: 0; }
+  .it .ic { width: 80px; height: 68px; display: flex; align-items: center; justify-content: center; border-radius: 8px; position: relative; }
+  .it.sel .ic { background: var(--selbg); }
+  .it .lb { font-size: 11.5px; text-align: center; line-height: 1.3; padding: 1px 5px; border-radius: 5px; max-width: 100%;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  .pane.focus .it.sel .lb { background: var(--accent); color: #fff; }
+  .pane:not(.focus) .it.sel .lb { background: var(--selun); }
+  .thumb { position: relative; display: flex; align-items: center; justify-content: center; }
+  .thumb img { position: absolute; max-width: 66px; max-height: 66px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.15); background: var(--card); }
+  .thumb img.gone { display: none; }
+  .play { position: absolute; right: 4px; bottom: 6px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff;
+          display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .play svg { width: 8px; height: 8px; fill: #fff; stroke: none; margin-left: 1px; }
+  .docic { position: relative; width: 44px; height: 56px; }
+  .docic svg { width: 44px; height: 56px; }
+  .docic span { position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%); color: #fff; font-size: 8px; font-weight: 700; padding: 1px 4px;
+                border-radius: 3px; letter-spacing: .2px; max-width: 40px; overflow: hidden; }
+  /* list view */
+  .lhead, .row { display: grid; grid-template-columns: minmax(160px, 1fr) 178px 76px 128px; align-items: center; }
+  .lhead { position: sticky; top: 0; z-index: 1; background: var(--win); border-bottom: .5px solid var(--line); font-size: 11.5px; color: var(--sec); height: 26px; padding: 0 12px; }
+  .lhead div { padding: 0 6px; border-left: .5px solid var(--line); height: 14px; display: flex; align-items: center; gap: 4px; }
+  .lhead div:first-child { border-left: 0; }
+  .lhead div.on { color: var(--text); font-weight: 600; }
+  .lhead svg { width: 9px; height: 9px; stroke-width: 2.4; }
+  .rows { padding: 2px 6px 10px; }
+  .row { height: 26px; padding: 0 6px; border-radius: 6px; font-size: 12.5px; }
+  .row:nth-child(even) { background: var(--fill); }
+  .row > div { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sec); }
+  .row > div:first-child { color: var(--text); display: flex; align-items: center; gap: 7px; }
+  .row .si { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 3px; }
+  .row .si img { width: 18px; height: 18px; object-fit: cover; }
+  .row .si svg { width: 16px; height: 16px; }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; }
+  .pane.focus .row.sel { background: var(--accent); }
+  .pane.focus .row.sel > div { color: #fff; }
+  .pane:not(.focus) .row.sel { background: var(--selun); }
+  .msg { padding: 60px 30px; text-align: center; color: var(--sec); font-size: 13px; line-height: 1.5; }
+  .pfoot { height: 28px; flex: none; border-top: .5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--sec); }
+
+  .mid { width: 64px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+         border-left: .5px solid var(--line); border-right: .5px solid var(--line); background: var(--side); }
+  .mid button { width: 38px; height: 38px; border-radius: 50%; border: 0; display: flex; align-items: center; justify-content: center;
+                background: var(--win); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px var(--line); }
+  .mid button:disabled { color: var(--ter); box-shadow: 0 0 0 .5px var(--line); }
+  .mid button:not(:disabled):active { transform: scale(.94); }
+  .mid button svg { width: 17px; height: 17px; }
+  .mid small { font-size: 10px; color: var(--sec); margin-bottom: 10px; }
+
+  /* ---------- connect screens ---------- */
+  .stage { flex: 1; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 30px 26px 24px; text-align: center; }
+  .stage h2 { margin: 14px 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -.3px; }
+  .lede { color: var(--sec); font-size: 13.5px; line-height: 1.45; max-width: 380px; }
+  .radar { width: 96px; height: 96px; position: relative; display: flex; align-items: center; justify-content: center; flex: none; }
+  .radar::before, .radar::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid var(--accent); opacity: 0;
+                                  animation: ping 2.4s cubic-bezier(.2,.6,.3,1) infinite; }
+  .radar::after { animation-delay: 1.2s; }
+  @keyframes ping { 0% { transform: scale(.45); opacity: .55; } 100% { transform: scale(1.15); opacity: 0; } }
+  .core { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(160deg, #5ac8fa, var(--accent)); color: #fff;
+          display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .core svg { width: 28px; height: 28px; stroke-width: 1.8; }
+  .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 500px; margin-top: 24px; text-align: left; }
+  .way { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: inset 0 0 0 .5px var(--cardline); }
+  .way .hd { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .way .hd svg { color: var(--accent); width: 17px; height: 17px; }
+  .st { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.4; margin-bottom: 10px; }
+  .st .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--fill2); color: var(--sec); font-size: 11px; font-weight: 600;
+           display: flex; align-items: center; justify-content: center; }
+  .cablehint { font-size: 11px; color: var(--ter); line-height: 1.4; margin-top: 12px; padding-top: 10px; border-top: .5px solid var(--line); }
+  .live { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--sec); margin-top: 6px; }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--fill2); border-top-color: var(--sec); animation: rot .9s linear infinite; flex: none; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .qr { width: 128px; height: 128px; background: #fff; border-radius: 12px; padding: 7px; margin: 0 auto 10px;
+        box-shadow: 0 0 0 .5px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.08); display: flex; align-items: center; justify-content: center; color: #8e8e93; font-size: 11px; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .qcap { font-size: 11.5px; color: var(--sec); text-align: center; line-height: 1.45; }
+  .illus { display: flex; gap: 26px; align-items: center; margin-top: 26px; text-align: left; }
+  .handset { width: 170px; height: 300px; border-radius: 30px; background: #111; padding: 7px; box-shadow: 0 0 0 1.5px #3a3a3c, 0 14px 40px rgba(0,0,0,.25); flex: none; }
+  .screen { width: 100%; height: 100%; border-radius: 24px; background: linear-gradient(180deg, #2c3e50, #1a1a2e); padding: 26px 9px 9px; position: relative; overflow: hidden; }
+  .notif { background: rgba(255,255,255,.14); border-radius: 13px; padding: 8px 9px; color: #fff; font-size: 9.5px; line-height: 1.3; }
+  .notif b { font-size: 10px; display: block; }
+  .sheetp { position: absolute; left: 7px; right: 7px; bottom: 7px; background: #f2f2f7; border-radius: 16px; padding: 10px 10px 8px; color: #1d1d1f; font-size: 10.5px; }
+  .sheetp .t { font-weight: 600; font-size: 11px; margin: 0 0 6px 2px; }
+  .opt { display: flex; align-items: center; gap: 7px; padding: 6px; border-radius: 8px; color: #6e6e73; }
+  .opt i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #c7c7cc; flex: none; }
+  .opt.pick { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 0 0 1.5px #007AFF; }
+  .opt.pick i { border: 3.5px solid #007AFF; }
+  .how { max-width: 230px; font-size: 13px; line-height: 1.55; color: var(--sec); }
+  .how ol { padding-left: 18px; margin: 0 0 12px; } .how li { margin-bottom: 8px; } .how b { color: var(--text); font-weight: 600; }
+  .bigsym { width: 64px; height: 64px; border-radius: 18px; background: var(--card); display: flex; align-items: center; justify-content: center; color: var(--sec);
+            box-shadow: inset 0 0 0 .5px var(--cardline); margin-top: 60px; flex: none; }
+  .bigsym svg { width: 30px; height: 30px; }
+  .bigspin { width: 30px; height: 30px; margin-top: 76px; border-radius: 50%; border: 3px solid var(--fill2); border-top-color: var(--accent); animation: rot .9s linear infinite; flex: none; }
+  .warn { margin-top: 16px; font-size: 12px; color: var(--orange); max-width: 380px; line-height: 1.45; }
+
+  /* wifi session */
+  .sess { flex: 1; overflow: auto; padding: 16px 18px; }
+  .grp { font-size: 11px; font-weight: 600; color: var(--sec); margin: 6px 4px 7px; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; }
+  .grp a { color: var(--accent); font-weight: 500; font-size: 11.5px; text-transform: none; }
+  .wl { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 .5px var(--cardline); margin-bottom: 18px; }
+  .wr { display: flex; align-items: center; gap: 11px; padding: 9px 12px; font-size: 13px; position: relative; text-align: left; }
+  .wr + .wr::before { content: ""; position: absolute; top: 0; left: 55px; right: 0; border-top: .5px solid var(--line); }
+  .wr .mini { width: 32px; height: 32px; border-radius: 6px; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; background: var(--fill); color: var(--sec); }
+  .wr .mini img { width: 100%; height: 100%; object-fit: cover; }
+  .wr .tx { flex: 1; min-width: 0; } .wr .tx div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wr .tx small { display: block; color: var(--sec); font-size: 11px; margin-top: 1px; }
+  .pb { height: 4px; border-radius: 2px; background: var(--fill2); margin-top: 5px; overflow: hidden; } .pb i { display: block; height: 100%; background: var(--accent); }
+  .chk { color: var(--green); display: flex; } .chk svg { width: 18px; height: 18px; }
+  .wempty { padding: 14px; color: var(--sec); font-size: 12px; text-align: center; }
+  .hint { font-size: 12px; color: var(--sec); text-align: center; line-height: 1.5; padding: 0 20px; }
+  .pill { border: 0; border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 500; background: var(--fill); color: var(--text); box-shadow: inset 0 0 0 .5px var(--line); }
+  .pill.red { color: var(--red); }
+
+  /* ---------- menus, sheets, toasts ---------- */
+  #menu { position: fixed; z-index: 100; min-width: 210px; padding: 5px; border-radius: 10px; background: var(--menu);
+          backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: var(--shadow); display: none; font-size: 13px; }
+  #menu .mi { padding: 4px 10px; border-radius: 5px; display: flex; align-items: center; gap: 8px; height: 24px; white-space: nowrap; }
+  #menu .mi:hover { background: var(--accent); color: #fff; }
+  #menu .mi.dis { color: var(--ter); pointer-events: none; }
+  #menu .mi.danger { color: var(--red); } #menu .mi.danger:hover { color: #fff; background: var(--red); }
+  #menu .mi .ck { width: 12px; font-size: 11px; }
+  #menu .mi kbd { margin-left: auto; font: 12px var(--font); opacity: .55; padding-left: 18px; }
+  #menu hr { border: 0; border-top: .5px solid var(--line); margin: 5px 8px; }
+  .veil { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.18); display: flex; align-items: flex-start; justify-content: center; padding-top: 70px; }
+  .sheet { width: 340px; max-height: calc(100vh - 110px); overflow: auto; background: var(--win); border-radius: 14px; box-shadow: var(--shadow); padding: 20px; text-align: center;
+           animation: drop .18s ease-out; }
+  .sheet.wide { width: 460px; text-align: left; }
+  @keyframes drop { from { transform: translateY(-14px); opacity: 0; } }
+  .sheet .sico { width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 13px; background: linear-gradient(160deg, #5ac8fa, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .sheet .sico svg { width: 26px; height: 26px; }
+  .sheet h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+  .sheet p { margin: 0 0 14px; color: var(--sec); font-size: 12px; line-height: 1.45; }
+  .sheet input.field { width: 100%; height: 28px; border-radius: 6px; border: .5px solid var(--line); background: var(--fill); color: var(--text);
+                       padding: 0 8px; font: 13px var(--font); outline: none; margin-bottom: 14px; box-shadow: 0 0 0 3px transparent; }
+  .sheet input.field:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .btns { display: flex; gap: 8px; }
+  .btns button { flex: 1; height: 28px; border-radius: 7px; border: 0; font-size: 13px; font-weight: 500; background: var(--fill2); color: var(--text); }
+  .btns button.def { background: var(--accent); color: #fff; }
+  .btns button.dest { background: var(--red); color: #fff; }
+  #toast { position: fixed; left: 50%; bottom: 46px; transform: translate(-50%, 20px); opacity: 0; transition: .25s; z-index: 95; pointer-events: none;
+           background: var(--menu); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: var(--shadow); border-radius: 999px;
+           padding: 9px 16px; font-size: 12.5px; display: flex; gap: 8px; align-items: center; max-width: 70vw; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast svg { width: 16px; height: 16px; }
+  #toast.ok svg { color: var(--green); } #toast.err svg { color: var(--red); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: var(--fill2); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+</style>
+</head>
+<body class="{{ 'native' if native else '' }}">
+
+<svg width="0" height="0" style="position:absolute">
+  <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ccaf7"/><stop offset="1" stop-color="#6cb4ef"/></linearGradient>
+  <symbol id="laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.6"/><path d="M2 19h20"/></symbol>
+  <symbol id="desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.8"/><path d="M9 20h6M12 16v4"/></symbol>
+  <symbol id="phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3"/></symbol>
+  <symbol id="cable" viewBox="0 0 24 24"><path d="M9 2v4M15 2v4M7 6h10v4a5 5 0 0 1-10 0z"/><path d="M12 15v7"/></symbol>
+  <symbol id="wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19.3" r=".9" fill="currentColor"/></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="right" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="left" viewBox="0 0 24 24"><path d="M20 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8" fill="currentColor"/><circle cx="4.5" cy="12" r=".8" fill="currentColor"/><circle cx="4.5" cy="18" r=".8" fill="currentColor"/></symbol>
+  <symbol id="sort" viewBox="0 0 24 24"><path d="M7 4v16M3.5 16.5L7 20l3.5-3.5M17 20V4M13.5 7.5L17 4l3.5 3.5"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor" stroke="none"/><path d="M7.8 12.3l2.8 2.8 5.6-5.8" stroke="#fff" stroke-width="2"/></symbol>
+  <symbol id="xmark" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor" stroke="none"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2"/></symbol>
+  <symbol id="warn" viewBox="0 0 24 24"><path d="M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></symbol>
+  <symbol id="playf" viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></symbol>
+  <symbol id="docl" viewBox="0 0 24 24"><path d="M6 2.5h8l4.5 4.5v13.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1z"/><path d="M14 2.5V7h4.5"/></symbol>
+  <symbol id="folder" viewBox="0 0 64 52"><path d="M3 8a4 4 0 0 1 4-4h15l5 5h30a4 4 0 0 1 4 4v3H3z" fill="#5aa6e8"/><rect x="3" y="12" width="58" height="37" rx="4" fill="url(#fg)"/></symbol>
+  <symbol id="doc" viewBox="0 0 46 58"><path d="M3 4a3 3 0 0 1 3-3h24l13 13v40a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#fff" stroke="#d1d1d6"/><path d="M30 1v10a3 3 0 0 0 3 3h10" fill="#ececf0" stroke="#d1d1d6"/><path d="M10 24h22M10 30h26M10 36h18" stroke="#d1d1d6" stroke-width="2"/></symbol>
+</svg>
+
+<div class="toolbar pywebview-drag-region" id="toolbar">
+  <div class="ttl pywebview-drag-region"><span class="logo"><svg class="i"><use href="#phone"/></svg></span>PhoneBridge</div>
+  <div class="sp pywebview-drag-region"></div>
+  <div id="jobcap"></div>
+  <div class="cap" id="viewseg">
+    <button data-v="grid" title="Icons"><svg class="i"><use href="#grid"/></svg></button>
+    <button data-v="list" title="List"><svg class="i"><use href="#list"/></svg></button>
+  </div>
+  <button class="tb solo" id="sortBtn" title="Sort by"><svg class="i"><use href="#sort"/></svg></button>
+  <label class="search"><svg class="i" style="width:13px;height:13px"><use href="#search"/></svg><input id="q" placeholder="Search" spellcheck="false"></label>
+  <button class="tb solo" id="wifiBtn" title="Share over Wi-Fi"><svg class="i"><use href="#wifi"/></svg><span>Wi-Fi</span></button>
+</div>
+
+<div class="main">
+  <section class="pane focus" id="pane-mac" data-side="mac">
+    <div class="phead">
+      <div class="dev" id="dev-mac"></div>
+      <div class="crumbs" id="crumbs-mac"></div>
+    </div>
+    <div class="body"><div class="list" id="list-mac" tabindex="0"></div></div>
+    <div class="pfoot" id="foot-mac"></div>
+  </section>
+
+  <div class="mid">
+    <button id="toPhone" title="Copy the selected Mac items to the phone"><svg class="i"><use href="#right"/></svg></button><small>To Phone</small>
+    <button id="toMac" title="Copy the selected phone items to the Mac"><svg class="i"><use href="#left"/></svg></button><small>To Mac</small>
+  </div>
+
+  <section class="pane" id="pane-phone" data-side="phone">
+    <div class="phead">
+      <div class="dev" id="dev-phone"></div>
+      <div class="crumbs" id="crumbs-phone"></div>
+    </div>
+    <div class="body" id="body-phone"><div class="list" id="list-phone" tabindex="0"></div></div>
+    <div class="pfoot" id="foot-phone"></div>
+  </section>
+</div>
+
+<div id="menu"></div>
+<div id="toast"></div>
+
+<script>
+const TOKEN = "{{ token }}";
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const enc = encodeURIComponent;
+const icon = (id, extra = "") => `<svg class="i" ${extra}><use href="#${id}"/></svg>`;
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+async function api(url, data) {
+  const opt = data === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "X-PhoneBridge": TOKEN }, body: JSON.stringify(data) };
+  try {
+    const r = await fetch(url, opt);
+    let j = {};
+    try { j = await r.json(); } catch (e) {}
+    if (!r.ok && !j.error) j.error = `Something went wrong (${r.status})`;
+    return j;
+  } catch (e) { return { error: "PhoneBridge stopped responding" }; }
+}
+
+// ---------------------------------------------------------------- formatting
+const IMG = ["jpg","jpeg","png","gif","bmp","webp","heic","heif","tif","tiff"], VID = ["mp4","mov","mkv","avi","webm","3gp","m4v"];
+const ext = (n) => { const i = n.lastIndexOf("."); return i > 0 ? n.slice(i + 1).toLowerCase() : ""; };
+const KINDS = { jpg: "JPEG image", jpeg: "JPEG image", png: "PNG image", gif: "GIF image", heic: "HEIF image", heif: "HEIF image", webp: "WebP image",
+  mp4: "MPEG-4 movie", mov: "QuickTime movie", mkv: "Matroska video", "3gp": "3GPP movie", m4v: "Video", pdf: "PDF document", doc: "Word document",
+  docx: "Word document", xls: "Excel spreadsheet", xlsx: "Excel spreadsheet", csv: "CSV document", ppt: "PowerPoint", pptx: "PowerPoint",
+  zip: "ZIP archive", rar: "RAR archive", "7z": "7-Zip archive", apk: "Android app", mp3: "MP3 audio", m4a: "Apple audio", wav: "WAV audio",
+  aac: "AAC audio", ogg: "Ogg audio", opus: "Opus audio", txt: "Plain text", html: "HTML document", json: "JSON", vcf: "Contact card" };
+const kindOf = (e) => e.is_dir ? "Folder" : (KINDS[ext(e.name)] || (ext(e.name) ? ext(e.name).toUpperCase() + " file" : "Document"));
+const BADGE = { pdf: "#e5484d", doc: "#2f6fdb", docx: "#2f6fdb", xls: "#1f9d55", xlsx: "#1f9d55", csv: "#1f9d55", ppt: "#e8743b", pptx: "#e8743b",
+  zip: "#8e8e93", rar: "#8e8e93", "7z": "#8e8e93", apk: "#3ddc84", mp3: "#d6409f", wav: "#d6409f", m4a: "#d6409f", aac: "#d6409f", ogg: "#d6409f", opus: "#d6409f",
+  txt: "#8e8e93", html: "#af52de", json: "#af52de", vcf: "#5ac8fa" };
+function fmtSize(n) { if (n == null) return "--"; if (n < 1000) return n + " bytes"; const u = ["KB","MB","GB","TB"]; let i = -1;
+  do { n /= 1000; i++; } while (n >= 1000 && i < 3); return (n < 10 ? n.toFixed(1) : Math.round(n)) + " " + u[i]; }
+function fmtDate(t) { if (!t) return "--"; const d = new Date(t * 1000), now = new Date();
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = (day(now) - day(d)) / 864e5;
+  if (diff === 0) return "Today at " + time; if (diff === 1) return "Yesterday at " + time;
+  return d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) + " at " + time; }
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+// ---------------------------------------------------------------- state
+const newPane = (side) => ({ side, path: null, parent: null, crumbs: [], entries: [], items: [], sel: new Set(), anchor: null, back: [], fwd: [], error: null, loaded: false });
+const P = { mac: newPane("mac"), phone: newPane("phone") };
+let view = store.get("mb-view", "grid"), sort = JSON.parse(store.get("mb-sort", '{"key":"name","asc":true}'));
+let query = "", hidden = false, focus = "mac";
+let dev = { status: "none" }, jobs = [], wifi = { on: false }, macInfo = {}, wifiFull = null;
+let phoneMode = null, modeSig = "", seenJobs = new Set();
+
+// ---------------------------------------------------------------- loading folders
+async function load(side, path, how = "push") {
+  const p = P[side];
+  const url = side === "mac" ? `/api/mac/list?path=${enc(path || "")}&hidden=${hidden ? 1 : 0}`
+                             : `/api/phone/list?path=${enc(path || "")}&hidden=${hidden ? 1 : 0}`;
+  const t = setTimeout(() => { if (!p.loaded || how !== "refresh") $(`#list-${side}`).innerHTML = `<div class="msg"><span class="spin" style="display:inline-block"></span></div>`; }, 250);
+  const d = await api(url);
+  clearTimeout(t);
+  if (d.error) {
+    if (how === "refresh" && p.loaded) { toast(d.error, "err"); return false; }
+    p.error = d.error; p.loaded = true; renderList(side); return false;
+  }
+  if (how === "push" && p.path && p.path !== d.path) { p.back.push(p.path); p.fwd = []; }
+  if (p.path !== d.path) { p.sel.clear(); p.anchor = null; $(`#list-${side}`).scrollTop = 0; }
+  else { const names = new Set(d.entries.map(e => e.name)); for (const n of [...p.sel]) if (!names.has(n)) p.sel.delete(n); }
+  Object.assign(p, { path: d.path, parent: d.parent, crumbs: d.crumbs, entries: d.entries, error: null, loaded: true });
+  renderCrumbs(side); renderList(side); prefetch(side);
+  return true;
+}
+function goBack(side) { const p = P[side]; if (!p.back.length) return; p.fwd.push(p.path); load(side, p.back.pop(), "nav"); }
+function goFwd(side) { const p = P[side]; if (!p.fwd.length) return; p.back.push(p.path); load(side, p.fwd.pop(), "nav"); }
+function goUp(side) { if (P[side].parent) load(side, P[side].parent); }
+function prefetch(side) {
+  const items = P[side].entries.filter(e => !e.is_dir && IMG.includes(ext(e.name))).map(e => ({ name: e.name, v: ver(e) }));
+  if (items.length) api("/api/prefetch", { side, path: P[side].path, items });
+}
+const ver = (e) => `${e.size ?? ""}-${e.mtime ? Math.round(e.mtime) : ""}`;
+const full = (side, name) => P[side].path.replace(/\/$/, "") + "/" + name;
+
+// ---------------------------------------------------------------- rendering
+function sorted(entries) {
+  const k = sort.key, dir = sort.asc ? 1 : -1;
+  const q = query.trim().toLowerCase();
+  return entries.filter(e => !q || e.name.toLowerCase().includes(q)).sort((a, b) => {
+    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+    let r = 0;
+    if (k === "size") r = (a.size || 0) - (b.size || 0);
+    else if (k === "date") r = (a.mtime || 0) - (b.mtime || 0);
+    else if (k === "kind") r = kindOf(a).localeCompare(kindOf(b));
+    return (r || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })) * dir;
+  });
+}
+function bigIcon(side, e) {
+  if (e.is_dir) return `<svg style="width:64px;height:52px"><use href="#folder"/></svg>`;
+  const x = ext(e.name);
+  const doc = `<div class="docic"><svg><use href="#doc"/></svg>${x && x.length <= 4 ? `<span style="background:${BADGE[x] || "#8e8e93"}">${esc(x.toUpperCase())}</span>` : ""}</div>`;
+  if (IMG.includes(x) || VID.includes(x)) {
+    const src = `/api/thumb?side=${side}&path=${enc(full(side, e.name))}&v=${enc(ver(e))}`;
+    return `<div class="thumb">${doc}<img loading="lazy" src="${src}" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.classList.add('gone');this.nextElementSibling&&this.nextElementSibling.remove()">${VID.includes(x) ? `<span class="play"><svg><use href="#playf"/></svg></span>` : ""}</div>`;
+  }
+  return doc;
+}
+function smallIcon(side, e) {
+  if (e.is_dir) return `<svg style="width:18px;height:15px"><use href="#folder"/></svg>`;
+  const x = ext(e.name);
+  if (IMG.includes(x) || VID.includes(x))
+    return `<img loading="lazy" src="/api/thumb?side=${side}&path=${enc(full(side, e.name))}&v=${enc(ver(e))}" onerror="this.outerHTML='<svg style=&quot;width:13px;height:17px&quot;><use href=&quot;#doc&quot;/></svg>'">`;
+  return `<svg style="width:13px;height:17px"><use href="#doc"/></svg>`;
+}
+function renderList(side) {
+  const p = P[side], el = $(`#list-${side}`);
+  if (!el) return;
+  if (p.error) { el.className = "list"; el.innerHTML = `<div class="msg">${esc(p.error)}</div>`; renderFoot(side); return; }
+  p.items = sorted(p.entries);
+  if (!p.items.length) {
+    el.className = "list";
+    el.innerHTML = `<div class="msg">${query ? "No matches" : "This folder is empty"}</div>`;
+  } else if (view === "grid") {
+    el.className = "list grid";
+    el.innerHTML = p.items.map((e, i) => `<div class="it${p.sel.has(e.name) ? " sel" : ""}" data-i="${i}" draggable="true" title="${esc(e.name)}"><div class="ic">${bigIcon(side, e)}</div><div class="lb">${esc(e.name)}</div></div>`).join("");
+  } else {
+    el.className = "list";
+    const h = (k, label) => `<div data-k="${k}" class="${sort.key === k ? "on" : ""}">${label}${sort.key === k ? icon(sort.asc ? "chev" : "chev", `style="transform:rotate(${sort.asc ? -90 : 90}deg)"`) : ""}</div>`;
+    el.innerHTML = `<div class="lhead">${h("name", "Name")}${h("date", "Date Modified")}${h("size", "Size")}${h("kind", "Kind")}</div><div class="rows">` +
+      p.items.map((e, i) => `<div class="row${p.sel.has(e.name) ? " sel" : ""}" data-i="${i}" draggable="true"><div><span class="si">${smallIcon(side, e)}</span><span class="nm">${esc(e.name)}</span></div><div>${fmtDate(e.mtime)}</div><div>${e.is_dir ? "--" : fmtSize(e.size)}</div><div>${kindOf(e)}</div></div>`).join("") + "</div>";
+  }
+  renderFoot(side); updateArrows();
+}
+function refreshSel(side) {
+  const p = P[side];
+  $(`#list-${side}`).querySelectorAll("[data-i]").forEach(n => n.classList.toggle("sel", p.sel.has(p.items[+n.dataset.i]?.name)));
+  renderFoot(side); updateArrows();
+}
+function renderFoot(side) {
+  const p = P[side], f = $(`#foot-${side}`);
+  if (!f) return;
+  if (side === "phone" && phoneMode !== "browse") { f.textContent = ""; return; }
+  const n = p.items.length, s = p.sel.size;
+  const free = side === "mac" ? macInfo.free : dev.free;
+  f.textContent = (s ? `${s} of ${n} selected` : plural(n, "item")) + (free != null ? `, ${fmtSize(free)} available` : "");
+}
+function renderCrumbs(side) {
+  const p = P[side], el = $(`#crumbs-${side}`);
+  if (side === "phone" && phoneMode !== "browse") { el.innerHTML = ""; el.style.display = "none"; return; }
+  el.style.display = "";
+  el.innerHTML = `<span class="nav"><button data-nav="back" ${p.back.length ? "" : "disabled"} title="Back">${icon("back")}</button><button data-nav="fwd" ${p.fwd.length ? "" : "disabled"} title="Forward">${icon("chev")}</button></span>` +
+    p.crumbs.map((c, i) => (i ? icon("chev", 'class="i chev"') : "") + `<span class="crumb" data-path="${esc(c.path)}">${esc(c.name)}</span>`).join("");
+}
+function storageMeta(free, total) {
+  if (free == null || !total) return "";
+  return `<span class="cbar"><b style="width:${Math.round(100 * (1 - free / total))}%"></b></span>${fmtSize(free)} available`;
+}
+function renderMacDev() {
+  const m = macInfo;
+  $("#dev-mac").innerHTML = `<div class="di">${icon(/Book/.test(m.model || "") ? "laptop" : "desktop")}</div><div><div class="dn">${esc(m.model || "This Mac")}</div><div class="dm">${storageMeta(m.free, m.total)}</div></div>`;
+}
+
+// ---------------------------------------------------------------- phone pane modes
+function modeFor() {
+  if (dev.status === "ready") return "browse";
+  if (wifi.connected || wifi.session) return "wifi";
+  return dev.status;                                 // none | charging | locked | connecting
+}
+function phoneDevRow(mode) {
+  const name = dev.name || "Phone";
+  if (mode === "browse") {
+    const meta = [storageMeta(dev.free, dev.total), dev.battery != null ? `Battery ${dev.battery}%` : ""].filter(Boolean).join(" · ");
+    const badge = dev.engine === "adb" ? "USB debugging" : "USB";
+    return [dev.name, `<span class="badge">${badge}</span>`, meta];
+  }
+  if (mode === "wifi") return wifi.connected ? [wifi.client || "Phone", `<span class="badge">Wi-Fi</span>`, "Connected over Wi-Fi"]
+    : [wifi.client || "Phone", `<span class="badge o">Page closed</span>`, "Open the PhoneBridge page on the phone again, or scan the code"];
+  if (mode === "charging") return [name, `<span class="badge o">Charging only</span>`, "Connected by cable"];
+  if (mode === "locked") return [name, `<span class="badge o">Locked</span>`, "Connected by cable"];
+  if (mode === "unstable") return [name, `<span class="badge o">Keeps disconnecting</span>`, "Connected by cable"];
+  if (mode === "connecting") return [name, "", "Connecting…"];
+  return ["No phone", "", "Connect with a cable or Wi-Fi"];
+}
+function renderPhone(force) {
+  const mode = modeFor();
+  const [nm, badge, meta] = phoneDevRow(mode);
+  $("#dev-phone").innerHTML = `<div class="di">${icon("phone")}</div><div><div class="dn">${esc(nm)}${badge ? " " + badge : ""}</div><div class="dm">${meta}</div></div>`;
+  const sig = mode + "|" + (dev.name || "") + "|" + (/Could not open/.test(dev.error || "") ? "err" : "");
+  const changed = sig !== modeSig;
+  const was = phoneMode;
+  phoneMode = mode;
+  if (!changed && !force) { if (mode === "browse") renderFoot("phone"); return; }
+  modeSig = sig;
+  const body = $("#body-phone");
+  if (mode === "browse") {
+    if (was !== "browse" || !$("#list-phone")) {
+      body.innerHTML = `<div class="list" id="list-phone" tabindex="0"></div>`;
+      bindList("phone");
+      Object.assign(P.phone, newPane("phone"));
+      load("phone", dev.home, "reset");
+    }
+  } else {
+    body.innerHTML = stageFor(mode);
+    if (mode === "none") ensureWifi();
+    if (mode === "wifi") renderWifiLists();
+  }
+  renderCrumbs("phone"); renderFoot("phone"); updateArrows();
+}
+function cableCard() {
+  return `<div class="way"><div class="hd">${icon("cable")}With a cable</div>
+    <div class="st"><span class="n">1</span><span>Plug your phone into this Mac.</span></div>
+    <div class="st"><span class="n">2</span><span>On the phone, tap <b>File transfer</b>.</span></div>
+    <div class="live"><span class="spin"></span>Looking for your phone…</div>
+    <div class="cablehint">Charging but no “File transfer” option on the phone? Some cables only charge. Try another cable, or a port on the Mac itself.</div></div>`;
+}
+function wifiCard() {
+  return `<div class="way"><div class="hd">${icon("wifi")}Over Wi-Fi</div>
+    <div class="qr" id="qrbox">${wifiFull && wifiFull.qr ? wifiFull.qr : '<span class="spin"></span>'}</div>
+    <div class="qcap" id="qrcap">${qrCaption()}</div></div>`;
+}
+function qrCaption() {
+  if (wifiFull && wifiFull.on && !wifiFull.url) return "Connect this Mac to Wi-Fi<br>to use this.";
+  return "Scan with your phone’s camera.<br>Works with iPhone too.";
+}
+function stageFor(mode) {
+  if (mode === "none") return `<div class="stage"><div class="radar"><div class="core">${icon("phone")}</div></div>
+      <h2>Connect your phone</h2><div class="lede">Nothing to install and no settings to change.</div>
+      <div class="ways">${cableCard()}${wifiCard()}</div></div>`;
+  if (mode === "charging") return `<div class="stage"><h2 style="margin-top:4px">Tap “File transfer” on your phone</h2>
+      <div class="lede">Your phone is plugged in but only charging.</div>
+      <div class="illus">
+        <div class="handset"><div class="screen">
+          <div class="notif"><b>Android System</b>Charging this device via USB<br><span style="opacity:.7">Tap for more options</span></div>
+          <div class="sheetp"><div class="t">Use USB for</div>
+            <div class="opt pick"><i></i>File transfer</div><div class="opt"><i></i>USB tethering</div>
+            <div class="opt"><i></i>MIDI</div><div class="opt"><i></i>PTP</div><div class="opt"><i></i>No data transfer</div></div></div></div>
+        <div class="how"><ol><li>Pull down from the top of the phone and tap <b>Charging this device via USB</b>.</li><li>Choose <b>File transfer</b>.</li></ol>
+          <span style="font-size:12px">On Samsung it’s called “Transferring files”.</span>
+          <div class="live" style="margin-top:14px"><span class="spin"></span>Your files open here by themselves.</div></div>
+      </div>${/Could not open/.test(dev.error || "") ? `<div class="warn">${esc(friendlyError(dev.error))}</div>` : ""}</div>`;
+  if (mode === "locked") return `<div class="stage"><div class="bigsym">${icon("lock")}</div><h2>Unlock your phone</h2>
+      <div class="lede">Your files appear as soon as it’s unlocked.</div><div class="live" style="margin-top:16px"><span class="spin"></span>Waiting…</div></div>`;
+  if (mode === "connecting") return `<div class="stage"><div class="bigspin"></div><h2>Opening your phone…</h2></div>`;
+  if (mode === "unstable") return `<div class="stage"><div class="bigsym">${icon("cable")}</div><h2>The connection keeps dropping</h2>
+      <div class="lede">Your phone is disconnecting and reconnecting every second, so its files can’t open.</div>
+      <div class="how" style="max-width:360px;margin-top:18px;text-align:left"><ol>
+        <li>Plug the phone <b>straight into a port on the Mac</b>, not a hub, keyboard or screen.</li>
+        <li>If it still happens, <b>try another cable</b>, ideally the one that came with the phone.</li>
+        <li>Then choose <b>File transfer</b> on the phone again.</li></ol></div>
+      <div class="live"><span class="spin"></span>Waiting for a steady connection…</div></div>`;
+  if (mode === "wifi") return `<div class="sess" id="wifiSess"></div>`;
+  return "";
+}
+function friendlyError(e) {
+  if (/Could not open/.test(e)) return "Another app may be using the phone (for example Android File Transfer, Image Capture or Photos). Quit it, then unplug and plug the phone in again.";
+  return e;
+}
+
+// ---------------------------------------------------------------- Wi-Fi
+async function ensureWifi() {
+  if (!wifi.on) { const d = await api("/api/wifi/start", {}); if (!d.error) wifiFull = d; }
+  else wifiFull = await api("/api/wifi");
+  const box = $("#qrbox"); if (box && wifiFull) box.innerHTML = wifiFull.qr || "";
+  const cap = $("#qrcap"); if (cap) cap.innerHTML = qrCaption();
+}
+function wifiRows(list, kind) {
+  if (!list.length) return `<div class="wempty">${kind === "in" ? "Nothing received yet. On the phone, tap <b>Send to Mac</b>." : "Nothing sent yet. Select files on the left and press <b>To Phone</b>."}</div>`;
+  return list.slice().reverse().map(r => {
+    const x = ext(r.name), img = IMG.includes(x);
+    let thumb = icon("docl");
+    if (kind === "in" && img && r.state === "done") thumb = `<img src="/api/thumb?side=mac&path=${enc(r.path)}&v=w" onerror="this.remove()">`;
+    if (kind === "out" && img) thumb = `<img src="/api/thumb?side=mac&path=${enc(r.path)}&v=w" onerror="this.remove()">`;
+    let sub = fmtSize(r.size), tail = "", bar = "";
+    if (kind === "in") {
+      if (r.state === "receiving") { sub = `Receiving · ${fmtSize(r.done)} of ${fmtSize(r.size)}`; bar = `<div class="pb"><i style="width:${r.size ? 100 * r.done / r.size : 0}%"></i></div>`; }
+      else if (r.state === "failed") { sub = "Didn’t finish"; tail = `<span class="chk" style="color:var(--red)">${icon("xmark")}</span>`; }
+      else tail = `<span class="chk">${icon("check")}</span>`;
+    } else {
+      sub += r.state === "preparing" ? " · Preparing…" : r.state === "sent" ? " · Saved on phone" : r.state === "failed" ? " · Failed" : " · Ready on phone";
+      if (r.state === "sent") tail = `<span class="chk">${icon("check")}</span>`;
+    }
+    return `<div class="wr"><div class="mini">${thumb}</div><div class="tx"><div>${esc(r.name)}</div><small>${sub}</small>${bar}</div>${tail}</div>`;
+  }).join("");
+}
+function wifiSessionHTML(withQR) {
+  const w = wifiFull || { received: [], outbox: [] };
+  return (withQR ? `<div style="text-align:center;margin-bottom:16px"><div class="qr">${w.qr || ""}</div><div class="qcap">${qrCaption()}</div></div>` : "") +
+    (withQR ? "" : `<div style="text-align:right;margin:-4px 2px 8px"><a class="grp" style="display:inline;color:var(--accent);text-transform:none;font-weight:500" data-act="showqr">Show QR code</a></div>`) +
+    `<div class="grp"><span>Received from phone</span><a data-act="inbox">Show in Finder</a></div><div class="wl">${wifiRows(w.received || [], "in")}</div>
+     <div class="grp"><span>Sent to phone</span></div><div class="wl">${wifiRows(w.outbox || [], "out")}</div>
+     <div class="hint">To send more, select files on the left and press <b>To Phone</b>.</div>
+     <div style="text-align:center;margin:16px 0 18px"><button class="pill red" data-act="stopwifi">Stop Sharing</button></div>`;
+}
+function renderWifiLists() {
+  const s = $("#wifiSess"); if (s) s.innerHTML = wifiSessionHTML(false);
+  const sh = $("#wifiSheetBody"); if (sh) sh.innerHTML = wifiSessionHTML(true);
+}
+async function pollWifi() {
+  const visible = phoneMode === "none" || phoneMode === "wifi" || $("#wifiSheetBody");
+  if (!visible || !wifi.on) return;
+  wifiFull = await api("/api/wifi");
+  if (phoneMode === "none") { const box = $("#qrbox"); if (box && wifiFull.qr && !box.querySelector("svg")) box.innerHTML = wifiFull.qr; const cap = $("#qrcap"); if (cap) cap.innerHTML = qrCaption(); }
+  renderWifiLists();
+}
+async function openWifiSheet() {
+  await ensureWifi();
+  sheet({ wide: true, title: "Share over Wi-Fi", html: `<div id="wifiSheetBody">${wifiSessionHTML(true)}</div>`, ok: "Done", cancel: null });
+}
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  if (a.dataset.act === "inbox") api("/api/wifi/reveal", {});
+  if (a.dataset.act === "showqr") openWifiSheet();
+  if (a.dataset.act === "stopwifi") { await api("/api/wifi/stop", {}); wifi.on = false; wifiFull = null; closeSheet(); toast("Wi-Fi sharing stopped. The old link no longer works."); modeSig = ""; }
+});
+
+// ---------------------------------------------------------------- status polling
+let pollTimer = null;
+async function poll() {
+  const d = await api("/api/status");
+  if (!d.error) {
+    const before = dev.status;
+    dev = d.device; jobs = d.jobs; wifi = d.wifi;
+    renderPhone(false);
+    if (before === "ready" && dev.status !== "ready") toast("Phone disconnected");
+    renderJobs();
+  }
+  pollWifi();
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(poll, jobs.some(j => j.state === "running" || j.state === "queued") ? 400 : 1000);
+}
+
+// ---------------------------------------------------------------- jobs
+function renderJobs() {
+  const active = jobs.find(j => j.state === "running" || j.state === "queued");
+  const cap = $("#jobcap");
+  if (active) {
+    const pct = active.total ? Math.min(100, Math.round(100 * active.done / active.total)) : 0;
+    const what = active.kind === "open" ? `Opening ${active.current}` :
+      `Copying ${Math.min(active.items_done + 1, active.items_total || 1)} of ${active.items_total || "…"}`;
+    cap.innerHTML = `<button class="tb solo live" id="jobBtn" style="margin-right:2px" title="Click to stop"><span class="ring" style="--p:${pct}"></span>${esc(what)} · ${pct}%${active.speed > 0 ? " · " + fmtSize(active.speed) + "/s" : ""}</button>`;
+    $("#jobBtn").onclick = async () => {
+      if (await sheet({ title: "Stop copying?", text: "Files already copied will stay. The one in progress will be removed.", ok: "Stop", destructive: true, cancel: "Keep Copying" }))
+        api(`/api/jobs/${active.id}/cancel`, {});
+    };
+  } else cap.innerHTML = "";
+  for (const j of jobs) {
+    if (!j.finished || seenJobs.has(j.id)) continue;
+    seenJobs.add(j.id);
+    finishJob(j);
+  }
+}
+function finishJob(j) {
+  if (j.kind === "copy") {
+    const dest = j.direction === "to_mac" ? "mac" : "phone";
+    if (dest === "mac" || phoneMode === "browse") load(dest, P[dest].path, "refresh");
+    loadMacInfo();
+  }
+  if (j.state === "cancelled") return toast("Stopped.");
+  if (j.state === "error") return sheet({ title: j.kind === "open" ? "Couldn’t open the file" : "Copy stopped", text: j.error, ok: "OK", cancel: null, warn: true });
+  if (j.kind !== "copy") return;
+  const ok = j.items_total - j.failed.length;
+  if (j.failed.length)
+    return sheet({ title: `${plural(j.failed.length, "item")} couldn’t be copied`, warn: true, cancel: null, ok: "OK",
+      text: j.failed.map(f => `${f.name}: ${f.error}`).join("\n") });
+  let msg = `Copied ${plural(ok, "item")} to ${j.direction === "to_mac" ? "Mac" : (dev.name || "phone")}`;
+  if (j.renamed.length) msg += ` (${j.renamed.length} renamed to keep both)`;
+  toast(msg, "ok");
+}
+
+// ---------------------------------------------------------------- actions
+function selected(side) { return P[side].items.filter(e => P[side].sel.has(e.name)).map(e => e.name); }
+function updateArrows() {
+  const toPhone = $("#toPhone"), toMac = $("#toMac");
+  toPhone.disabled = !(P.mac.sel.size && (phoneMode === "browse" || phoneMode === "wifi" || wifi.on));
+  toMac.disabled = !(phoneMode === "browse" && P.phone.sel.size);
+}
+async function copyTo(target) {
+  const from = target === "phone" ? "mac" : "phone";
+  const items = selected(from);
+  if (!items.length) return;
+  if (target === "phone" && phoneMode !== "browse") {
+    if (!wifi.on) return toast("Connect your phone first", "err");
+    await api("/api/wifi/send", { dir: P.mac.path, items });
+    toast(`${plural(items.length, "item")} ready on the phone. Tap Save there.`, "ok");
+    wifiFull = await api("/api/wifi"); renderWifiLists();
+    return;
+  }
+  if (phoneMode !== "browse") return toast("Connect your phone first", "err");
+  const d = await api("/api/copy", { direction: target === "phone" ? "to_phone" : "to_mac", items, src_dir: P[from].path, dst_dir: P[target].path });
+  if (d.error) return sheet({ title: "Can’t copy", text: d.error, ok: "OK", cancel: null, warn: true });
+  setTimeout(poll, 150);
+}
+$("#toPhone").onclick = () => copyTo("phone");
+$("#toMac").onclick = () => copyTo("mac");
+
+async function openItem(side, e) {
+  if (e.is_dir) return load(side, full(side, e.name));
+  const d = await api("/api/open", { side, path: full(side, e.name) });
+  if (d.error) toast(d.error, "err"); else setTimeout(poll, 150);
+}
+async function newFolder(side) {
+  const name = await sheet({ title: "New Folder", text: side === "mac" ? "Create a folder here on the Mac." : `Create a folder on ${dev.name || "the phone"}.`, input: "untitled folder", ok: "Create" });
+  if (!name) return;
+  const d = await api("/api/mkdir", { side, path: P[side].path, name });
+  if (d.error) return sheet({ title: "Couldn’t create the folder", text: d.error, ok: "OK", cancel: null, warn: true });
+  await load(side, P[side].path, "refresh");
+  P[side].sel = new Set([name]); refreshSel(side);
+}
+async function renameItem(side) {
+  const [old] = selected(side); if (!old) return;
+  const name = await sheet({ title: "Rename", input: old, ok: "Rename", selectStem: true });
+  if (!name || name === old) return;
+  const d = await api("/api/rename", { side, dir: P[side].path, old, new: name });
+  if (d.error) return sheet({ title: "Couldn’t rename", text: d.error, ok: "OK", cancel: null, warn: true });
+  await load(side, P[side].path, "refresh");
+  P[side].sel = new Set([name]); refreshSel(side);
+}
+async function deleteItems(side) {
+  const items = selected(side); if (!items.length) return;
+  if (side === "phone") {
+    const ok = await sheet({ title: `Delete ${items.length === 1 ? "“" + items[0] + "”" : plural(items.length, "item")}?`,
+      text: `This removes ${items.length === 1 ? "it" : "them"} from ${dev.name || "the phone"}. This can’t be undone.`, ok: "Delete", destructive: true, warn: true });
+    if (!ok) return;
+  }
+  const d = await api("/api/delete", { side, dir: P[side].path, items });
+  if (d.failed && d.failed.length) sheet({ title: "Some items couldn’t be deleted", text: d.failed.map(f => `${f.name}: ${f.error}`).join("\n"), ok: "OK", cancel: null, warn: true });
+  else toast(side === "mac" ? `Moved ${plural(items.length, "item")} to the ${macInfo.trash || "Trash"}` : `Deleted ${plural(items.length, "item")}`, "ok");
+  load(side, P[side].path, "refresh");
+  if (side === "mac") loadMacInfo();
+}
+async function goToFolder(side) {
+  const path = await sheet({ title: "Go to Folder", input: P[side].path, ok: "Go" });
+  if (path) load(side, path);
+}
+function toggleHidden() { hidden = !hidden; load("mac", P.mac.path, "refresh"); if (phoneMode === "browse") load("phone", P.phone.path, "refresh"); toast(hidden ? "Showing hidden files" : "Hiding hidden files"); }
+
+// ---------------------------------------------------------------- list interaction
+function setFocus(side) {
+  focus = side;
+  $("#pane-mac").classList.toggle("focus", side === "mac");
+  $("#pane-phone").classList.toggle("focus", side === "phone");
+}
+function bindList(side) {
+  const el = $(`#list-${side}`);
+  el.addEventListener("mousedown", (ev) => {
+    setFocus(side);
+    if (ev.button !== 0) return;
+    const n = ev.target.closest("[data-i]");
+    const head = ev.target.closest(".lhead [data-k]");
+    if (head) { const k = head.dataset.k; sort = { key: k, asc: sort.key === k ? !sort.asc : true }; store.set("mb-sort", JSON.stringify(sort)); renderList("mac"); renderList("phone"); return; }
+    const p = P[side];
+    if (!n) { if (!ev.target.closest(".lhead")) { p.sel.clear(); p.anchor = null; refreshSel(side); } return; }
+    const i = +n.dataset.i, name = p.items[i].name;
+    if (ev.shiftKey && p.anchor != null) {
+      const [a, b] = [p.anchor, i].sort((x, y) => x - y);
+      if (!ev.metaKey) p.sel.clear();
+      for (let k = a; k <= b; k++) p.sel.add(p.items[k].name);
+    } else if (ev.metaKey || ev.ctrlKey) {
+      p.sel.has(name) ? p.sel.delete(name) : p.sel.add(name); p.anchor = i;
+    } else {
+      if (!p.sel.has(name)) { p.sel.clear(); p.sel.add(name); }
+      p.anchor = i;
+      n.dataset.pending = "1";                    // plain click on a selected item: narrow on mouseup if not dragged
+    }
+    refreshSel(side);
+  });
+  el.addEventListener("click", (ev) => {
+    const n = ev.target.closest("[data-i]");
+    if (n && n.dataset.pending && !ev.metaKey && !ev.shiftKey) { const p = P[side]; p.sel = new Set([p.items[+n.dataset.i].name]); refreshSel(side); }
+    if (n) delete n.dataset.pending;
+  });
+  el.addEventListener("dblclick", (ev) => { const n = ev.target.closest("[data-i]"); if (n) openItem(side, P[side].items[+n.dataset.i]); });
+  el.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault(); setFocus(side);
+    const n = ev.target.closest("[data-i]"), p = P[side];
+    if (n) { const name = p.items[+n.dataset.i].name; if (!p.sel.has(name)) { p.sel = new Set([name]); refreshSel(side); } }
+    else { p.sel.clear(); refreshSel(side); }
+    itemMenu(ev.clientX, ev.clientY, side, !!n);
+  });
+  el.addEventListener("dragstart", (ev) => {
+    const n = ev.target.closest("[data-i]"); if (!n) return;
+    delete n.dataset.pending;
+    ev.dataTransfer.setData("application/x-phonebridge", side);
+    ev.dataTransfer.effectAllowed = "copy";
+  });
+}
+function bindDrop(paneSide) {
+  const pane = $(`#pane-${paneSide}`);
+  const from = paneSide === "mac" ? "phone" : "mac";
+  pane.addEventListener("dragover", (ev) => { if ([...ev.dataTransfer.types].includes("application/x-phonebridge")) { ev.preventDefault(); ev.dataTransfer.dropEffect = "copy"; } });
+  pane.addEventListener("dragenter", (ev) => { if ([...ev.dataTransfer.types].includes("application/x-phonebridge")) pane.classList.add("drop"); });
+  pane.addEventListener("dragleave", (ev) => { if (!pane.contains(ev.relatedTarget)) pane.classList.remove("drop"); });
+  pane.addEventListener("drop", (ev) => {
+    pane.classList.remove("drop");
+    const src = ev.dataTransfer.getData("application/x-phonebridge");
+    if (src && src === from) { ev.preventDefault(); copyTo(paneSide); }
+  });
+}
+$("#crumbs-mac").addEventListener("click", crumbClick("mac"));
+$("#crumbs-phone").addEventListener("click", crumbClick("phone"));
+function crumbClick(side) {
+  return (ev) => {
+    const b = ev.target.closest("[data-nav]"); if (b) return b.dataset.nav === "back" ? goBack(side) : goFwd(side);
+    const c = ev.target.closest("[data-path]"); if (c) load(side, c.dataset.path);
+  };
+}
+
+// ---------------------------------------------------------------- context menu
+function menu(x, y, items) {
+  const m = $("#menu");
+  m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" :
+    `<div class="mi${it.dis ? " dis" : ""}${it.danger ? " danger" : ""}" data-m="${i}"><span class="ck">${it.check ? "✓" : ""}</span>${esc(it.label)}${it.key ? `<kbd>${it.key}</kbd>` : ""}</div>`).join("");
+  m.style.display = "block";
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(x, innerWidth - w - 6) + "px";
+  m.style.top = Math.min(y, innerHeight - h - 6) + "px";
+  m.onclick = (ev) => { const r = ev.target.closest("[data-m]"); if (!r) return; hideMenu(); items[+r.dataset.m].run(); };
+}
+function hideMenu() { $("#menu").style.display = "none"; }
+document.addEventListener("mousedown", (ev) => { if (!ev.target.closest("#menu")) hideMenu(); });
+function itemMenu(x, y, side, onItem) {
+  const sel = selected(side), n = sel.length, other = side === "mac" ? "Phone" : "Mac";
+  const canCopy = side === "mac" ? !$("#toPhone").disabled : !$("#toMac").disabled;
+  const items = [];
+  if (onItem) {
+    const e = P[side].items.find(x => x.name === sel[0]);
+    items.push({ label: "Open", run: () => openItem(side, e) });
+    if (side === "mac") items.push({ label: "Show in Finder", run: () => api("/api/reveal", { path: full("mac", sel[0]) }) });
+    items.push("-", { label: `Copy ${n > 1 ? n + " Items " : ""}to ${other}`, dis: !canCopy, run: () => copyTo(side === "mac" ? "phone" : "mac") }, "-");
+    if (n === 1) items.push({ label: "Rename…", key: "↩", run: () => renameItem(side) });
+    items.push({ label: side === "mac" ? `Move to ${macInfo.trash || "Trash"}` : "Delete…", key: "⌘⌫", danger: side === "phone", run: () => deleteItems(side) });
+  } else {
+    items.push({ label: "New Folder…", key: "⇧⌘N", run: () => newFolder(side) },
+               { label: "Go to Folder…", key: "⇧⌘G", run: () => goToFolder(side) }, "-",
+               { label: "Refresh", run: () => load(side, P[side].path, "refresh") },
+               { label: hidden ? "Hide Hidden Files" : "Show Hidden Files", key: "⇧⌘.", run: toggleHidden });
+  }
+  menu(x, y, items);
+}
+$("#sortBtn").onclick = (ev) => {
+  const r = ev.currentTarget.getBoundingClientRect();
+  const opt = (k, label) => ({ label, check: sort.key === k, run: () => { sort = { key: k, asc: k === "name" || k === "kind" }; store.set("mb-sort", JSON.stringify(sort)); renderList("mac"); renderList("phone"); } });
+  menu(r.left, r.bottom + 6, [opt("name", "Name"), opt("kind", "Kind"), opt("date", "Date Modified"), opt("size", "Size")]);
+};
+
+// ---------------------------------------------------------------- sheets & toasts
+let sheetDone = null;
+function sheet({ title, text, html, input, ok = "OK", cancel = "Cancel", destructive, wide, warn, selectStem }) {
+  closeSheet();
+  return new Promise((resolve) => {
+    const v = document.createElement("div");
+    v.className = "veil"; v.id = "veil";
+    v.innerHTML = `<div class="sheet${wide ? " wide" : ""}">${wide ? "" : `<div class="sico" ${warn ? 'style="background:linear-gradient(160deg,#ffcc00,#ff9500)"' : ""}>${icon(warn ? "warn" : "phone")}</div>`}
+      <h3>${esc(title)}</h3>${text ? `<p style="white-space:pre-line">${esc(text)}</p>` : ""}${html || ""}
+      ${input != null ? `<input class="field" id="sheetIn" value="${esc(input)}" spellcheck="false">` : ""}
+      <div class="btns">${cancel ? `<button id="sheetNo">${esc(cancel)}</button>` : ""}<button id="sheetOk" class="${destructive ? "dest" : "def"}">${esc(ok)}</button></div></div>`;
+    document.body.appendChild(v);
+    const inp = $("#sheetIn");
+    const finish = (val) => { sheetDone = null; v.remove(); resolve(val); };
+    sheetDone = () => finish(false);
+    $("#sheetOk").onclick = () => finish(inp ? inp.value.trim() : true);
+    if (cancel) $("#sheetNo").onclick = () => finish(false);
+    v.addEventListener("mousedown", (e) => { if (e.target === v) finish(false); });
+    v.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#sheetOk").click(); } if (e.key === "Escape") finish(false); e.stopPropagation(); });
+    if (inp) { inp.focus(); const dot = input.lastIndexOf("."); inp.setSelectionRange(0, selectStem && dot > 0 ? dot : input.length); }
+    else $("#sheetOk").focus();
+  });
+}
+function closeSheet() { if (sheetDone) sheetDone(); }
+let toastT = null;
+function toast(msg, kind = "") {
+  const t = $("#toast");
+  t.className = kind; t.innerHTML = (kind ? icon(kind === "ok" ? "check" : "xmark") : "") + `<span>${esc(msg)}</span>`;
+  requestAnimationFrame(() => t.classList.add("show"));
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+// ---------------------------------------------------------------- keyboard
+document.addEventListener("keydown", (e) => {
+  if ($("#veil")) return;
+  if (e.target.tagName === "INPUT") { if (e.key === "Escape") { e.target.value = ""; query = ""; renderList("mac"); renderList("phone"); e.target.blur(); } return; }
+  const side = focus, p = P[side];
+  const usable = side === "mac" || phoneMode === "browse";
+  if (e.key === "Escape") { hideMenu(); p.sel.clear(); refreshSel(side); return; }
+  if (!usable) return;
+  if (e.metaKey && e.key.toLowerCase() === "a") { e.preventDefault(); p.sel = new Set(p.items.map(x => x.name)); refreshSel(side); }
+  else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "n") { e.preventDefault(); newFolder(side); }
+  else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "g") { e.preventDefault(); goToFolder(side); }
+  else if (e.metaKey && e.shiftKey && (e.key === "." || e.key === ">")) { e.preventDefault(); toggleHidden(); }
+  else if (e.metaKey && e.key === "Backspace") { e.preventDefault(); deleteItems(side); }
+  else if (e.metaKey && e.key === "ArrowUp") { e.preventDefault(); goUp(side); }
+  else if (e.metaKey && e.key === "ArrowDown") { e.preventDefault(); const [n] = selected(side); if (n) openItem(side, p.items.find(x => x.name === n)); }
+  else if (e.metaKey && e.key === "[") { e.preventDefault(); goBack(side); }
+  else if (e.metaKey && e.key === "]") { e.preventDefault(); goFwd(side); }
+  else if (e.metaKey && e.key.toLowerCase() === "f") { e.preventDefault(); $("#q").focus(); }
+  else if (e.key === "Enter" && p.sel.size === 1) { e.preventDefault(); renameItem(side); }
+});
+
+// ---------------------------------------------------------------- toolbar
+function setView(v) { view = v; store.set("mb-view", v); document.querySelectorAll("#viewseg button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); renderList("mac"); if (phoneMode === "browse") renderList("phone"); }
+document.querySelectorAll("#viewseg button").forEach(b => b.onclick = () => setView(b.dataset.v));
+$("#q").addEventListener("input", (e) => { query = e.target.value; renderList("mac"); if (phoneMode === "browse") renderList("phone"); });
+$("#wifiBtn").onclick = openWifiSheet;
+$("#pane-mac").addEventListener("mousedown", () => setFocus("mac"));
+$("#pane-phone").addEventListener("mousedown", () => setFocus("phone"));
+
+async function loadMacInfo() { macInfo = await api("/api/mac/info"); renderMacDev(); renderFoot("mac"); }
+
+// ---------------------------------------------------------------- start
+bindList("mac"); bindDrop("mac"); bindDrop("phone");
+setView(view);
+loadMacInfo();
+load("mac", "{{ mac_home }}", "reset");
+renderPhone(true);
+poll();
+</script>
+</body>
+</html>
