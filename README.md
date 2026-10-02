@@ -10,6 +10,10 @@ No USB debugging. No app on the phone. No account, no cloud. Free and open sourc
 
 [**⬇ Download PhoneBridge.dmg**](https://github.com/chatwithme004-lgtm/PhoneBridge/releases/latest/download/PhoneBridge.dmg) · [How to use](#how-to-use) · [Troubleshooting](#troubleshooting) · [Build from source](#build-from-source)
 
+<a href="https://x.com/prashant8978/status/2106036167863116076"><img src="docs/demo-poster.jpg" alt="Watch the 24-second PhoneBridge demo" width="860"></a>
+
+<sub>▶ <a href="https://x.com/prashant8978/status/2106036167863116076">Watch the 24-second demo</a> · <a href="docs/demo.mp4">download the video</a></sub>
+
 <img src="docs/cable-dark.png" alt="PhoneBridge showing a Mac folder and a phone's camera roll side by side" width="860">
 
 </div>
