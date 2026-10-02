@@ -24,7 +24,7 @@ PhoneBridge talks to the phone the same way Windows does. Plug it in, tap **File
 
 ## Features
 
-- **Cable, two steps.** Plug the phone in and tap **File transfer**. Works with Samsung, Pixel, Motorola, Xiaomi / Redmi / POCO, OnePlus, OPPO, vivo, realme and other Android phones. USB debugging is not needed.
+- **Cable, two steps.** Plug the phone in and tap **File transfer**. Tested on Motorola and Xiaomi (Redmi) phones, and built to work with any Android phone that offers File transfer. USB debugging is not needed. [Tell us how your phone does](../../issues).
 - **Wi-Fi, one step.** Scan a QR code with the phone's camera. A page opens in the phone's browser where you can send photos and files to the Mac and save files from it. **Works with iPhone too.**
 - **Feels like Finder.** Icon and list views, photo and video thumbnails, sorting, search, back and forward, a path bar, right-click menus and keyboard shortcuts.
 - **Copy both ways.** Use drag and drop or the arrow buttons, with live progress, speed, and a Stop button.

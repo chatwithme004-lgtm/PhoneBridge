@@ -3,7 +3,7 @@
 Move files between any Android phone and your Mac, by cable or over Wi-Fi.
 
 ## What's new
-- **No USB debugging needed.** Plug in and tap **File transfer** on the phone. Works with Samsung, Pixel, Motorola, Xiaomi / Redmi / POCO, OnePlus, OPPO, vivo and more.
+- **No USB debugging needed.** Plug in and tap **File transfer** on the phone. Tested on Motorola and Xiaomi (Redmi) phones, and built to work with any Android phone that offers File transfer.
 - **Wi-Fi sharing.** Scan a QR code with your phone's camera to send photos and files both ways. Nothing to install on the phone, and it works with iPhone too.
 - **New Finder-style design** with light and dark mode, icon and list views, thumbnails, search, sorting, back and forward, and keyboard shortcuts.
 - **Drag and drop** between Mac and phone, with live progress, speed and a Stop button.
